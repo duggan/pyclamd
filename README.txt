@@ -51,20 +51,26 @@ Here is an example on Unix:
 
 $ python
 >>> import pyclamd
->>> pyclamd.init_unix_socket('/tmp/clamd.socket')
->>> pyclamd.ping()
+>>> cd = pyclamd.ClamdUnixSocket()
+>>> try:
+...     cd.ping()
+... except pyclamd.ConnectionError:
+...     cd = pyclamd.ClamdNetworkSocket()
+...     cd.ping()
+... 
 True
->>> pyclamd.version()
-'ClamAV 0.95.3/10512/Thu Mar  4 14:17:23 2010'
->>> pyclamd.scan_stream(pyclamd.EICAR)
-{'stream': 'Eicar-Test-Signature FOUND'}
->>> pyclamd.scan_stream('a clean string')
->>> pyclamd.scan_file('/tmp/clean.txt')
->>> f=open('/tmp/eicar.bin','wb')
->>> f.write(pyclamd.EICAR)
->>> f.close()
->>> pyclamd.scan_file('/tmp/eicar.bin')
-{'/tmp/eicar.bin': 'Eicar-Test-Signature'}
->>> import os
->>> os.remove('/tmp/eicar.bin')
+>>> cd.version().split()[0]
+'ClamAV'
+>>> cd.reload()
+'RELOADING'
+>>> cd.stats().split()[0]
+'POOLS:'
+>>> open('/tmp/EICAR','w').write(cd.EICAR())
+>>> open('/tmp/NO_EICAR','w').write('no virus in this file')
+>>> cd.scan_file('/tmp/EICAR')
+{'/tmp/EICAR': ('FOUND', 'Eicar-Test-Signature')}
+>>> cd.scan_file('/tmp/NO_EICAR') is None
+True
+>>> cd.scan_stream(cd.EICAR())
+{'stream': ('FOUND', 'Eicar-Test-Signature')}
 >>> 

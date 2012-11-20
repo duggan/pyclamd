@@ -3,11 +3,38 @@
 
 import pyclamd
 
-cd = pyclamd.clamd_unix_socket()
-print(cd.ping())
-print(cd.version())
-print(cd.reload())
-print(cd.stats())
-print(cd.scan_stream(cd.EICAR()))
+# Create object for using unix socket
+cd = pyclamd.ClamdUnixSocket()
+try:
+    # test if server is reachable
+    cd.ping()
+except pyclamd.ConnectionError:
+    # if failed, test for network socket
+    cd = pyclamd.ClamdNetworkSocket()
+    try:
+        cd.ping()
+    except pyclamd.ConnectionError:
+        raise ValueError, "could not connect to clamd server either by unix or network socket"
+
+# print version
+print "Version : \n{0}\n".format(cd.version())
+
+# force a db reload
+cd.reload()
+
+# print stats
+print "\n{0}\n".format(cd.stats())
+
+# write test file with EICAR test string
 open('/tmp/EICAR','w').write(cd.EICAR())
-print(cd.scan_file('/tmp/EICAR'))
+
+# write test file without virus pattern
+open('/tmp/NO_EICAR','w').write('no virus in this file')
+
+# scan files
+print "\n{0}\n".format(cd.scan_file('/tmp/EICAR'))
+print "\n{0}\n".format(cd.scan_file('/tmp/NO_EICAR'))
+
+# scan a stream
+print "\n{0}\n".format(cd.scan_stream(cd.EICAR()))
+

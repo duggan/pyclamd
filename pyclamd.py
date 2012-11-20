@@ -23,7 +23,9 @@
 #						  operations
 # 2010-07-11 v0.2.1 AN: - change all raise exception (was deprecated), license 
 #						  change to LGPL
-# 2010-07-12 v0.3.0 AN: - change API to class model
+# 2010-07-12 v0.2.2 TK: - PEP8 compliance
+#						  isolating send and receive functions
+# 2012-11-20 v0.3.0 AN: - change API to class model
 #                       - using INSTREAM scan method instead of the deprecated STREAM
 #                       - added MULTISCAN method
 #                       - STATS now return full data on multiline
@@ -57,31 +59,30 @@ Test strings :
 
 >>> import pyclamd
 >>> cd = pyclamd.ClamdUnixSocket()
->>> cd.ping()
+>>> try:
+...     # test if server is reachable
+...     cd.ping()
+... except pyclamd.ConnectionError:
+...     # if failed, test for network socket
+...     cd = pyclamd.ClamdNetworkSocket()
+...     try:
+...         cd.ping()
+...     except pyclamd.ConnectionError:
+...         raise ValueError, "could not connect to clamd server either by unix or network socket"
 True
 >>> cd.version().split()[0]
 'ClamAV'
 >>> cd.reload()
 'RELOADING'
->>> cd.stats()
-'POOLS: 1'
+>>> cd.stats().split()[0]
+'POOLS:'
 >>> open('/tmp/EICAR','w').write(cd.EICAR())
+>>> open('/tmp/NO_EICAR','w').write('no virus in this file')
 >>> cd.scan_file('/tmp/EICAR')
 {'/tmp/EICAR': ('FOUND', 'Eicar-Test-Signature')}
->>> cd.scan_stream(cd.EICAR())
-{'stream': ('FOUND', 'Eicar-Test-Signature')}
->>> cdn = pyclamd.ClamdNetworkSocket()
->>> cdn.ping()
+>>> cd.scan_file('/tmp/NO_EICAR') is None
 True
->>> cdn.version().split()[0]
-'ClamAV'
->>> cdn.reload()
-'RELOADING'
->>> cdn.stats()
-'POOLS: 1'
->>> cdn.scan_file('/tmp/EICAR')
-{'/tmp/EICAR': ('FOUND', 'Eicar-Test-Signature')}
->>> cdn.scan_stream(cd.EICAR())
+>>> cd.scan_stream(cd.EICAR())
 {'stream': ('FOUND', 'Eicar-Test-Signature')}
 """
 
@@ -622,11 +623,19 @@ def _non_regression_test():
 ############################################################################
 
 
+def _print_doc():
+    """
+    This is for internal use
+    """
+    import os, sys
+    os.system('pydoc ./{0}.py'.format(__name__))
+    return
+
+
 # MAIN -------------------
 if __name__ == '__main__':
-	
-	_non_regression_test()
 
+    _non_regression_test()
 
 
 #<EOF>###########################################################################
