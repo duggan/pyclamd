@@ -4,7 +4,7 @@ ARCHIVE=`python setup.py --fullname`
 
 
 test:
-	@python nmap/nmap.py
+	@python pyclamd.py
 
 install:
 	@python setup.py install
