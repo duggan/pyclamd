@@ -68,16 +68,16 @@ Test strings :
 ...     try:
 ...         cd.ping()
 ...     except pyclamd.ConnectionError:
-...         raise ValueError, "could not connect to clamd server either by unix or network socket"
+...         raise ValueError('could not connect to clamd server either by unix or network socket')
 True
->>> cd.version().split()[0]
-'ClamAV'
->>> cd.reload()
-'RELOADING'
->>> cd.stats().split()[0]
-'POOLS:'
->>> open('/tmp/EICAR','w').write(cd.EICAR())
->>> open('/tmp/NO_EICAR','w').write('no virus in this file')
+>>> print(cd.version().split()[0])
+ClamAV
+>>> print(cd.reload())
+RELOADING
+>>> print(cd.stats().split()[0])
+POOLS:
+>>> void = open('/tmp/EICAR','w').write(cd.EICAR())
+>>> void = open('/tmp/NO_EICAR','w').write('no virus in this file')
 >>> cd.scan_file('/tmp/EICAR')
 {'/tmp/EICAR': ('FOUND', 'Eicar-Test-Signature')}
 >>> cd.scan_file('/tmp/NO_EICAR') is None
@@ -96,6 +96,8 @@ import socket
 import types
 import struct
 import string
+import base64
+import sys
 
 ############################################################################
 
@@ -121,8 +123,8 @@ class _ClamdGeneric(object):
         returns Eicar test string
         """
         # Eicar test string (encoded for skipping virus scanners)
-        EICAR = 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5E' \
-                'QVJELUFOVElWSVJVUy1URVNU\nLUZJTEUhJEgrSCo=\n'.decode('base64')
+        
+        EICAR = base64.b64decode('WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNU\nLUZJTEUhJEgrSCo=\n'.encode('ascii')).decode('ascii')
         return EICAR
         
 
@@ -149,7 +151,7 @@ class _ClamdGeneric(object):
         if result == 'PONG':
             return True
         else:
-            raise ConnectionError('Could not ping clamd server')
+            raise ConnectionError('Could not ping clamd server [{0}]'.format(result))
         return
 
 
@@ -253,13 +255,13 @@ class _ClamdGeneric(object):
           - socket.timeout: if timeout has expired
         """
 
-        assert type(file) in types.StringTypes, 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
+        assert isinstance(file, str), 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
 
         try:
             self._init_socket()
-            self._send_command('SCAN %s' % file)
+            self._send_command('SCAN {0}'.format(file))
         except socket.error:
-            raise ConnectionError('Unable to scan %s' % file)
+            raise ConnectionError('Unable to scan {0}'.format(file))
 
         result='...'
         dr={}
@@ -267,7 +269,7 @@ class _ClamdGeneric(object):
             try:
                 result = self._recv_response()
             except socket.error:
-                raise ConnectionError('Unable to scan %s' % file)
+                raise ConnectionError('Unable to scan {0}'.format(file))
 
             if len(result) > 0:
                 filename, reason, status = self._parse_response(result)
@@ -303,13 +305,13 @@ class _ClamdGeneric(object):
         May raise:
           - ConnectionError: in case of communication problem
         """
-        assert type(file) in types.StringTypes, 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
+        assert isinstance(file, str), 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
 
         try:
             self._init_socket()
-            self._send_command('MULTISCAN %s' % file)
+            self._send_command('MULTISCAN {0}'.format(file))
         except socket.error:
-            raise ConnectionError('Unable to scan %s' % file)
+            raise ConnectionError('Unable to scan {0}'.format(file))
 
         result='...'
         dr={}
@@ -317,7 +319,7 @@ class _ClamdGeneric(object):
             try:
                 result = self._recv_response()
             except socket.error:
-                raise ConnectionError('Unable to scan %s' % file)
+                raise ConnectionError('Unable to scan {0}'.format(file))
 
             if len(result) > 0:
                 filename, reason, status = self._parse_response(result)
@@ -354,13 +356,13 @@ class _ClamdGeneric(object):
         May raise:
           - ConnectionError: in case of communication problem
         """
-        assert type(file) in types.StringTypes, 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
+        assert isinstance(file, str), 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
 
         try:
             self._init_socket()
-            self._send_command('CONTSCAN %s' % file)
+            self._send_command('CONTSCAN {0}'.format(file))
         except socket.error:
-            raise ConnectionError('Unable to scan %s' % file)
+            raise ConnectionError('Unable to scan  {0}'.format(file))
 
         result='...'
         dr={}
@@ -368,7 +370,7 @@ class _ClamdGeneric(object):
             try:
                 result = self._recv_response()
             except socket.error:
-                raise ConnectionError('Unable to scan %s' % file)
+                raise ConnectionError('Unable to scan  {0}'.format(file))
 
             if len(result) > 0:
                 filename, reason, status = self._parse_response(result)
@@ -386,11 +388,11 @@ class _ClamdGeneric(object):
 
 
 
-    def scan_stream(self, buffer):
+    def scan_stream(self, buffer_to_test):
         """
         Scan a buffer
 
-        buffer (string): buffer to scan
+        buffer_to_test (string): buffer to scan
 
         return either:
           - (dict): {filename1: "virusname"}
@@ -400,7 +402,11 @@ class _ClamdGeneric(object):
           - BufferTooLongError: if the buffer size exceeds clamd limits
           - ConnectionError: in case of communication problem
         """
-        assert type(buffer) in types.StringTypes, 'Wrong type for [buffer], should be a string [was {0}]'.format(type(buffer))
+        # Depending on python version
+        if sys.version[0]=='2':
+            assert isinstance(buffer_to_test, (str, unicode)), 'Wrong type for [file], should be a string [was {0}]'.format(type(buffer_to_test))
+        elif sys.version[0]=='3':
+            assert isinstance(buffer_to_test, (str)), 'Wrong type for [file], should be a string [was {0}]'.format(type(buffer_to_test))
 
         try:
             self._init_socket()
@@ -408,13 +414,13 @@ class _ClamdGeneric(object):
 
             max_chunk_size = 1024 # MUST be < StreamMaxLength in /etc/clamav/clamd.conf
 
-            chunks_left = buffer
+            chunks_left = buffer_to_test
             while len(chunks_left)>0:
                 chunk = chunks_left[:max_chunk_size]
                 chunks_left = chunks_left[max_chunk_size:]
 
-                size = struct.pack('!L', len(chunk))
-                self.clamd_socket.send('{0}{1}'.format(size, chunk))
+                size = bytes.decode(struct.pack('!L', len(chunk)))
+                self.clamd_socket.send(str.encode('{0}{1}'.format(size, chunk)))
 
             self.clamd_socket.send(struct.pack('!L', 0))
                 
@@ -460,7 +466,7 @@ class _ClamdGeneric(object):
         terminated strings, as python<->clamd has some problems with \0x00
         """
 
-        cmd = 'n%s\n' % cmd 
+        cmd = str.encode('n{0}\n'.format(cmd))
         self.clamd_socket.send(cmd)
         return
 
@@ -470,7 +476,7 @@ class _ClamdGeneric(object):
         """
         receive response from clamd and strip all whitespace characters
         """
-        response =  self.clamd_socket.recv(4096).strip()
+        response =  bytes.decode(self.clamd_socket.recv(4096)).strip()
         return response
 
 
@@ -483,7 +489,7 @@ class _ClamdGeneric(object):
         c = '...'
         while c != '':
             try:
-                c = self.clamd_socket.recv(4096).strip()
+                c = bytes.decode(self.clamd_socket.recv(4096)).strip()
             except socket.error:
                 break
             response += '{0}\n'.format(c)
@@ -507,10 +513,10 @@ class _ClamdGeneric(object):
         msg = msg.strip()
         filename = msg.split(': ')[0]
         left = msg.split(': ')[1:]
-        if type(left) in types.StringTypes:
+        if isinstance(left, str):
             result = left
         else:
-            result = string.join(left, ': ')
+            result = ": ".join(left)
             
         if result != 'OK':
             parts = result.split()
@@ -538,8 +544,8 @@ class ClamdUnixSocket(_ClamdGeneric):
         filename (string) : unix socket filename
         timeout (float or None) : socket timeout
         """
-        assert type(filename) in types.StringTypes, 'Wrong type for [filename], should be a string [was {0}]'.format(type(filename))
-        assert type(timeout) in (types.IntType, types.FloatType, types.NoneType), 'Wrong type for [timeout], should be either None or a float [was {0}]'.format(type(timeout))
+        assert isinstance(filename, str), 'Wrong type for [file], should be a string [was {0}]'.format(type(file))
+        assert isinstance(timeout, (float, int)) or timeout is None, 'Wrong type for [timeout], should be either None or a float [was {0}]'.format(type(timeout))
 
         _ClamdGeneric.__init__(self)
         
@@ -558,8 +564,7 @@ class ClamdUnixSocket(_ClamdGeneric):
             self.clamd_socket.connect(self.unix_socket)
             self.clamd_socket.settimeout(self.timeout)
         except socket.error:
-            raise ConnectionError('Could not reach clamd using unix socket (%s)' % 
-                        (self.unix_socket))        
+            raise ConnectionError('Could not reach clamd using unix socket ({0})'.format((self.unix_socket)))
         return
     
 
@@ -578,9 +583,9 @@ class ClamdNetworkSocket(_ClamdGeneric):
         port (int) : TCP port
         timeout (float or None) : socket timeout
         """
-        assert type(host) in types.StringTypes, 'Wrong type for [host], should be a string [was {0}]'.format(type(host))
-        assert type(port) in (types.IntType, ), 'Wrong type for [port], should be an int [was {0}]'.format(type(port))
-        assert type(timeout) in (types.IntType, types.FloatType, types.NoneType), 'Wrong type for [timeout], should be either None or a float [was {0}]'.format(type(timeout))
+        assert isinstance(host, str), 'Wrong type for [host], should be a string [was {0}]'.format(type(host))
+        assert isinstance(port, int), 'Wrong type for [port], should be an int [was {0}]'.format(type(port))
+        assert isinstance(timeout, (float, int)) or timeout is None, 'Wrong type for [timeout], should be either None or a float [was {0}]'.format(type(timeout))
         
         _ClamdGeneric.__init__(self)
         
@@ -601,8 +606,7 @@ class ClamdNetworkSocket(_ClamdGeneric):
             self.clamd_socket.settimeout(self.timeout)
 
         except socket.error:
-            raise ConnectionError('Could not reach clamd using network (%s, %s)' % 
-                        (self.host, self.port))
+            raise ConnectionError('Could not reach clamd using network ({0}, {1})'.format(self.host, self.port))
 
         return
 
