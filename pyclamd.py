@@ -30,6 +30,8 @@
 #                       - added MULTISCAN method
 #                       - STATS now return full data on multiline
 #                   TK: - changes to API to make it more consistent
+# 2012-11-20 v0.3.1 AN: - typo change (Connextion to Connexion)
+#                       - Fixed Issue 3: scan_stream: AssertionError
 #------------------------------------------------------------------------------
 # TODO:
 # - improve tests for Win32 platform (avoid to write EICAR file to disk, or
@@ -151,7 +153,7 @@ class _ClamdGeneric(object):
         if result == 'PONG':
             return True
         else:
-            raise ConnectionError('Could not ping clamd server [{0}]'.format(result))
+            raise ConnexionError('Could not ping clamd server [{0}]'.format(result))
         return
 
 
@@ -402,12 +404,6 @@ class _ClamdGeneric(object):
           - BufferTooLongError: if the buffer size exceeds clamd limits
           - ConnectionError: in case of communication problem
         """
-        # Depending on python version
-        if sys.version[0]=='2':
-            assert isinstance(buffer_to_test, (str, unicode)), 'Wrong type for [file], should be a string [was {0}]'.format(type(buffer_to_test))
-        elif sys.version[0]=='3':
-            assert isinstance(buffer_to_test, (str)), 'Wrong type for [file], should be a string [was {0}]'.format(type(buffer_to_test))
-
         try:
             self._init_socket()
             self._send_command('INSTREAM')
